@@ -74,19 +74,30 @@ export const getLeads = async (req, res) => {
     try {
         const { filter, skip, limit, page } = buildFilterQuery(req.query);
         
+        console.log('🔍 [getLeads] Filter:', filter);
+        
         const [leads, total] = await Promise.all([
-            Lead.find(filter).skip(skip).limit(limit),
+            Lead.find(filter).skip(skip).limit(limit).lean(),
             Lead.countDocuments(filter)
         ]);
 
-        const totalPages = Math.ceil(total / limit);
+        console.log(`📊 [getLeads] Found ${leads.length} leads out of ${total}`);
+        
+        // Convert _id to id and remove __v for cleaner frontend data
+        const formattedLeads = leads.map(lead => {
+            const { _id, __v, ...rest } = lead;
+            return { id: _id, ...rest };
+        });
 
         res.status(200).json({
-            data: leads,
-            page,
-            limit,
-            total,
-            totalPages
+            success: true,
+            data: formattedLeads,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit)
+            }
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
